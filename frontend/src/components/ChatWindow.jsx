@@ -8,6 +8,7 @@ const ChatWindow = ({ messages, setMessages, isReady, isProcessing }) => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const messagesEndRef = useRef(null);
+  const isSending = useRef(false); // Synchronous lock
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -19,15 +20,17 @@ const ChatWindow = ({ messages, setMessages, isReady, isProcessing }) => {
 
   const handleSend = async (e) => {
     e.preventDefault();
-    // Request Lock & Validation
-    if (!query.trim() || loading || !isReady || isProcessing) return;
+    // Use both state and ref for robust locking
+    if (!query.trim() || loading || isSending.current || !isReady || isProcessing) return;
 
+    isSending.current = true; // Lock immediately
+    setLoading(true);
+    
     const currentQuery = query.trim();
     const userMsg = { role: 'user', content: currentQuery };
     
     setMessages(prev => [...prev, userMsg]);
     setQuery('');
-    setLoading(true);
     setError(null);
 
     try {
@@ -46,6 +49,10 @@ const ChatWindow = ({ messages, setMessages, isReady, isProcessing }) => {
       }]);
     } finally {
       setLoading(false);
+      // Add a small delay (debounce) before unlocking to prevent rapid re-submission
+      setTimeout(() => {
+        isSending.current = false;
+      }, 300);
     }
   };
 

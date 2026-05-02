@@ -46,12 +46,21 @@ const uploadFile = async (req, res, next) => {
     const chunks = chunkText(extractedText, 150, 30);
 
     // 3. Embedding & Vector Storage
-    const processedChunks = await Promise.all(
-      chunks.map(async (content) => {
-        const embedding = await generateEmbeddings(content);
-        return { content, embedding, filename: originalname };
-      })
-    );
+    let processedChunks;
+    try {
+      processedChunks = await Promise.all(
+        chunks.map(async (content) => {
+          const embedding = await generateEmbeddings(content);
+          return { content, embedding, filename: originalname };
+        })
+      );
+    } catch (embeddingError) {
+      console.error('[Embedding Error] Failed to generate embeddings:', embeddingError);
+      return res.status(500).json({
+        message: 'Failed to analyze document. Please ensure Ollama is running and the "nomic-embed-text" model is available.',
+        error: embeddingError.message,
+      });
+    }
 
     await vectorStore.addDocuments(processedChunks);
 

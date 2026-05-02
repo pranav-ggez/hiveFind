@@ -26,6 +26,7 @@ app.use('/api/upload', require('./routes/uploadRoutes'));
 app.use('/api/chat', require('./routes/chatRoutes'));
 app.use('/api/history', require('./routes/historyRoutes'));
 app.use('/api/quiz', require('./routes/quizRoutes'));
+app.use('/api/system', require('./routes/systemRoutes'));
 
 // Error Middleware
 const { notFound, errorHandler } = require('./middleware/errorMiddleware');
