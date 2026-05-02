@@ -12,13 +12,15 @@ const normalize = (vector) => {
 
 /**
  * Vector Service using FAISS (Cosine Similarity)
- * Includes filename in metadata for better source transparency
+ * Isolated for "One Active Document" logic
  */
 class VectorService {
   constructor() {
     this.dimension = 768;
     this.index = new IndexFlatIP(this.dimension);
     this.metadata = [];
+    this.activeDocument = null; // Tracks the currently loaded document
+    
     this.indexPath = path.join(__dirname, '../data/faiss.index');
     this.metadataPath = path.join(__dirname, '../data/metadata.json');
 
@@ -30,19 +32,19 @@ class VectorService {
 
   /**
    * Add documents to the index
-   * @param {Array} chunks - Array of objects { content, embedding, filename }
    */
-  async addDocuments(chunks) {
+  async addDocuments(chunks, filename) {
     const normalizedEmbeddings = chunks.map(c => normalize(c.embedding)).flat();
     this.index.add(normalizedEmbeddings);
     
     chunks.forEach(c => {
       this.metadata.push({ 
         content: c.content, 
-        filename: c.filename || 'Unknown Document' 
+        filename: filename 
       });
     });
 
+    this.activeDocument = filename;
     this.saveIndex();
   }
 
@@ -67,17 +69,21 @@ class VectorService {
 
   saveIndex() {
     this.index.write(this.indexPath);
-    fs.writeFileSync(this.metadataPath, JSON.stringify(this.metadata));
+    fs.writeFileSync(this.metadataPath, JSON.stringify({
+      activeDocument: this.activeDocument,
+      metadata: this.metadata
+    }));
   }
 
   loadIndex() {
     if (fs.existsSync(this.indexPath) && fs.existsSync(this.metadataPath)) {
       try {
         this.index = IndexFlatIP.read(this.indexPath);
-        this.metadata = JSON.parse(fs.readFileSync(this.metadataPath, 'utf8'));
-        console.log(`[VectorStore] Cosine Index Loaded: ${this.index.ntotal()} documents`);
+        const data = JSON.parse(fs.readFileSync(this.metadataPath, 'utf8'));
+        this.metadata = data.metadata || [];
+        this.activeDocument = data.activeDocument || null;
+        console.log(`[VectorStore] Loaded active document: ${this.activeDocument} (${this.index.ntotal()} chunks)`);
       } catch (e) {
-        console.error('[VectorStore] Error loading index:', e.message);
         this.clear();
       }
     }
@@ -86,9 +92,14 @@ class VectorService {
   clear() {
     this.index = new IndexFlatIP(this.dimension);
     this.metadata = [];
+    this.activeDocument = null;
     if (fs.existsSync(this.indexPath)) fs.unlinkSync(this.indexPath);
     if (fs.existsSync(this.metadataPath)) fs.unlinkSync(this.metadataPath);
-    console.log('[VectorStore] Index cleared');
+    console.log('[VectorStore] Index cleared for new document.');
+  }
+
+  getDocCount() {
+    return this.index.ntotal();
   }
 }
 

@@ -23,11 +23,9 @@ const uploadFile = async (req, res, next) => {
       return res.status(400).json({ message: 'File too large. Max 5MB allowed.' });
     }
 
-    // Check for duplicate file in DB
-    const existing = await File.findOne({ name: originalname });
-    if (existing) {
-      return res.status(400).json({ message: 'A file with this name is already indexed.' });
-    }
+    // 2. Clear Previous Context (Ensures "Active Document" isolation)
+    console.log(`[Upload] Clearing previous index. Setting new active document: ${originalname}`);
+    vectorStore.clear();
 
     let extractedText = '';
     if (mimetype === 'application/pdf') {
@@ -42,29 +40,20 @@ const uploadFile = async (req, res, next) => {
       return res.status(400).json({ message: 'Could not extract text from file' });
     }
 
-    // 2. Chunking (150 words / 30 overlap for slide-deck precision)
+    // 3. Chunking & Processing
     const chunks = chunkText(extractedText, 150, 30);
 
-    // 3. Embedding & Vector Storage
-    let processedChunks;
-    try {
-      processedChunks = await Promise.all(
-        chunks.map(async (content) => {
-          const embedding = await generateEmbeddings(content);
-          return { content, embedding, filename: originalname };
-        })
-      );
-    } catch (embeddingError) {
-      console.error('[Embedding Error] Failed to generate embeddings:', embeddingError);
-      return res.status(500).json({
-        message: 'Failed to analyze document. Please ensure Ollama is running and the "nomic-embed-text" model is available.',
-        error: embeddingError.message,
-      });
-    }
+    const processedChunks = await Promise.all(
+      chunks.map(async (content) => {
+        const embedding = await generateEmbeddings(content);
+        return { content, embedding };
+      })
+    );
 
-    await vectorStore.addDocuments(processedChunks);
+    // 4. Indexing (Isolated to this file only)
+    await vectorStore.addDocuments(processedChunks, originalname);
 
-    // 4. Persistence
+    // 5. Persistence (Metadata only)
     const newFile = new File({
       name: originalname,
       mimetype: mimetype,
@@ -73,7 +62,7 @@ const uploadFile = async (req, res, next) => {
     await newFile.save();
 
     res.json({
-      message: 'Document successfully indexed',
+      message: 'Document successfully indexed as active context',
       fileName: originalname,
       totalChunks: processedChunks.length,
       fileId: newFile._id

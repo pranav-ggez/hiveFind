@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { ThemeProvider } from './ThemeContext';
 import Sidebar from './components/Sidebar';
 import ChatWindow from './components/ChatWindow';
@@ -13,6 +13,23 @@ function AppInner() {
   const [chatMessages, setChatMessages] = useState([]);
   const [isProcessing, setIsProcessing] = useState(false);
   const isReady = files.length > 0;
+
+  // Clear chat if active document context is wiped or changes
+  const handleUploadStart = () => {
+    setIsProcessing(true);
+    setChatMessages([]); // Reset chat when starting a new document index
+  };
+
+  const handleUploadSuccess = () => {
+    setIsProcessing(false);
+  };
+
+  // Ensure chat is cleared if all files are manually removed
+  useEffect(() => {
+    if (files.length === 0) {
+      setChatMessages([]);
+    }
+  }, [files]);
 
   return (
     <div className="flex h-screen bg-hf-bg overflow-hidden text-hf font-sans transition-colors duration-200">
@@ -48,8 +65,8 @@ function AppInner() {
             <div className="flex-1 flex min-h-0 overflow-hidden">
               <div className="w-[280px] shrink-0 border-r border-hf overflow-y-auto custom-scrollbar bg-hf-surface">
                 <UploadPanel
-                  onUploadStart={() => setIsProcessing(true)}
-                  onUploadSuccess={() => setIsProcessing(false)}
+                  onUploadStart={handleUploadStart}
+                  onUploadSuccess={handleUploadSuccess}
                   files={files} setFiles={setFiles}
                 />
               </div>
