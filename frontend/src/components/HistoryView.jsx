@@ -1,6 +1,15 @@
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
-import { History, FileText, MessageSquare, Clock, RefreshCcw } from 'lucide-react';
+import { FileText, MessageSquare, Clock, RefreshCcw, Trophy } from 'lucide-react';
+
+const SectionHeader = ({ icon: Icon, title, action }) => (
+  <div className="flex items-center justify-between mb-4">
+    <h2 className="text-[13px] font-black text-hf uppercase tracking-widest flex items-center gap-2">
+      <Icon size={15} className="text-blue-400" />{title}
+    </h2>
+    {action}
+  </div>
+);
 
 const HistoryView = () => {
   const [data, setData] = useState({ queries: [], files: [], quizzes: [] });
@@ -8,90 +17,104 @@ const HistoryView = () => {
 
   const fetchHistory = async () => {
     setLoading(true);
-    try {
-      const { data } = await axios.get('/api/history');
-      setData(data);
-    } catch (err) {
-      console.error('Failed to fetch history');
-    } finally {
-      setLoading(false);
-    }
+    try { const { data } = await axios.get('/api/history'); setData(data); }
+    catch { /* silently fail */ }
+    finally { setLoading(false); }
   };
 
-  useEffect(() => {
-    fetchHistory();
-  }, []);
+  useEffect(() => { fetchHistory(); }, []);
 
-  if (loading) {
-    return (
-      <div className="flex items-center justify-center h-64">
-        <RefreshCcw className="animate-spin text-blue-600" />
-      </div>
-    );
-  }
+  if (loading) return (
+    <div className="flex items-center justify-center h-64">
+      <RefreshCcw className="animate-spin text-blue-400" size={22} />
+    </div>
+  );
 
   return (
-    <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
-      <section>
-        <h2 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
-          <FileText size={20} className="text-blue-600" />
-          Uploaded Documents
-        </h2>
-        <div className="bg-white rounded-xl border border-gray-100 shadow-sm overflow-hidden">
-          <table className="w-full text-left text-sm">
-            <thead className="bg-gray-50 text-gray-500 font-medium">
-              <tr>
-                <th className="px-6 py-3">File Name</th>
-                <th className="px-6 py-3">Upload Date</th>
-                <th className="px-6 py-3">Size</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-gray-100">
-              {data.files.length === 0 ? (
-                <tr>
-                  <td colSpan="3" className="px-6 py-8 text-center text-gray-400">No files uploaded yet.</td>
-                </tr>
-              ) : (
-                data.files.map((file) => (
-                  <tr key={file._id} className="hover:bg-gray-50 transition-colors">
-                    <td className="px-6 py-4 font-medium text-gray-900">{file.name}</td>
-                    <td className="px-6 py-4 text-gray-500">
-                      {new Date(file.uploadDate).toLocaleDateString()}
-                    </td>
-                    <td className="px-6 py-4 text-gray-500">{(file.size / 1024 / 1024).toFixed(2)} MB</td>
-                  </tr>
-                ))
-              )}
-            </tbody>
-          </table>
-        </div>
-      </section>
+    <div className="max-w-3xl mx-auto px-6 py-8 space-y-8 animate-in">
 
+      {/* ── Uploaded Documents ── */}
       <section>
-        <h2 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
-          <MessageSquare size={20} className="text-blue-600" />
-          Recent Queries
-        </h2>
-        <div className="space-y-4">
-          {data.queries.length === 0 ? (
-            <div className="bg-white p-8 rounded-xl border border-gray-100 shadow-sm text-center text-gray-400">
-              No queries found.
-            </div>
+        <SectionHeader icon={FileText} title="Uploaded Documents"
+          action={
+            <button onClick={fetchHistory} className="text-[11px] text-hf-subtle hover:text-hf flex items-center gap-1.5 transition-colors">
+              <RefreshCcw size={11} /> Refresh
+            </button>
+          }
+        />
+        <div className="bg-hf-surface border border-hf rounded-2xl overflow-hidden">
+          {/* Table head */}
+          <div className="grid grid-cols-[1fr_140px_100px] px-5 py-3 border-b border-hf bg-hf-raised">
+            {['File Name', 'Upload Date', 'Size'].map(h => (
+              <span key={h} className="text-[10px] font-black text-hf-subtle uppercase tracking-widest">{h}</span>
+            ))}
+          </div>
+          {/* Rows */}
+          {data.files.length === 0 ? (
+            <div className="px-5 py-10 text-center text-[12px] text-hf-subtle">No files uploaded yet.</div>
           ) : (
-            data.queries.map((q) => (
-              <div key={q._id} className="bg-white p-5 rounded-xl border border-gray-100 shadow-sm space-y-2">
-                <div className="flex justify-between items-start gap-4">
-                  <p className="font-semibold text-gray-900">{q.question}</p>
-                  <span className="text-[10px] text-gray-400 flex items-center gap-1 uppercase tracking-wider shrink-0">
-                    <Clock size={12} /> {new Date(q.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                  </span>
+            data.files.map((file, i) => (
+              <div key={file._id} className={`grid grid-cols-[1fr_140px_100px] px-5 py-3.5 items-center transition-colors hover:bg-hf-raised ${i !== 0 ? 'border-t border-hf' : ''}`}>
+                <div className="flex items-center gap-2.5 min-w-0">
+                  <FileText size={13} className="text-blue-400 shrink-0" />
+                  <span className="text-[12px] font-semibold text-hf truncate">{file.name}</span>
                 </div>
-                <p className="text-sm text-gray-600 line-clamp-2">{q.answer}</p>
+                <span className="text-[11px] text-hf-muted">{new Date(file.uploadDate).toLocaleDateString()}</span>
+                <span className="text-[11px] text-hf-muted">{(file.size / 1024 / 1024).toFixed(2)} MB</span>
               </div>
             ))
           )}
         </div>
       </section>
+
+      {/* ── Recent Queries ── */}
+      <section>
+        <SectionHeader icon={MessageSquare} title="Recent Queries" />
+        {data.queries.length === 0 ? (
+          <div className="bg-hf-surface border border-hf rounded-2xl px-5 py-10 text-center text-[12px] text-hf-subtle">
+            No queries found.
+          </div>
+        ) : (
+          <div className="space-y-3">
+            {data.queries.map(q => (
+              <div key={q._id} className="bg-hf-surface border border-hf rounded-2xl p-5 hover:border-hf-md transition-colors">
+                <div className="flex justify-between items-start gap-4 mb-2">
+                  <p className="text-[13px] font-bold text-hf">{q.question}</p>
+                  <span className="flex items-center gap-1 text-[10px] text-hf-subtle shrink-0 mt-0.5">
+                    <Clock size={10} />
+                    {new Date(q.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                  </span>
+                </div>
+                <p className="text-[12px] text-hf-muted line-clamp-2 leading-relaxed">{q.answer}</p>
+              </div>
+            ))}
+          </div>
+        )}
+      </section>
+
+      {/* ── Quiz History ── */}
+      {data.quizzes?.length > 0 && (
+        <section>
+          <SectionHeader icon={Trophy} title="Quiz History" />
+          <div className="space-y-3">
+            {data.quizzes.map(qz => (
+              <div key={qz._id} className="bg-hf-surface border border-hf rounded-2xl px-5 py-4 flex items-center justify-between hover:border-hf-md transition-colors">
+                <div>
+                  <p className="text-[13px] font-bold text-hf">{qz.title}</p>
+                  <p className="text-[11px] text-hf-muted mt-0.5">{new Date(qz.timestamp).toLocaleDateString()}</p>
+                </div>
+                <div className={`flex items-center gap-2 px-3 py-1.5 rounded-full border text-[11px] font-bold ${
+                  qz.score >= 80 ? 'bg-emerald-500/10 border-emerald-500/20 text-emerald-400' :
+                  qz.score >= 50 ? 'bg-amber-500/10 border-amber-500/20 text-amber-400' :
+                                   'bg-red-500/10 border-red-500/20 text-red-400'
+                }`}>
+                  <Trophy size={12} /> {qz.score}%
+                </div>
+              </div>
+            ))}
+          </div>
+        </section>
+      )}
     </div>
   );
 };
