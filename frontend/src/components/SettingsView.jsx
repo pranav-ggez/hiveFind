@@ -39,8 +39,9 @@ const SettingsView = () => {
   const handleClear = async () => {
     if (!window.confirm('Permanently delete all indexed documents and history?')) return;
     setIsLoading(true); setError(null); setSuccess(null);
+    const API = import.meta.env.VITE_API_URL;
     try {
-      const res = await axios.delete('/api/system/clear');
+      const res = await axios.delete(`${API}/system/clear`);
       setSuccess(res.data.message || 'Index cleared successfully.');
     } catch (err) {
       setError(err.response?.data?.message || 'Failed to clear index.');
@@ -60,22 +61,22 @@ const SettingsView = () => {
       <Card title="AI Configuration" icon={Zap}>
         <Row label="Language Model"    sub="gemini-flash-latest · Optimized for speed"  right={<Badge color="blue"  label="Active"   />} />
         <Row label="Embedding Engine"  sub="Ollama · nomic-embed-text"                  right={<Badge color="green" label="Running"  />} />
-        <Row label="Retrieval"         sub="Top-K cosine similarity (k = 5)"            right={<Badge color="amber" label="Default"  />} />
-        <Row label="Chunk Size"        sub="512 tokens · 64-token overlap"              right={<span className="text-[11px] font-mono text-hf-subtle">512 / 64</span>} />
+        <Row label="Retrieval"         sub="Top-K cosine similarity (k = 10)"           right={<Badge color="amber" label="Default"  />} />
+        <Row label="Chunk Size"        sub="150 words · 30-word overlap"                right={<span className="text-[11px] font-mono text-hf-subtle">150 / 30</span>} />
       </Card>
 
       {/* System */}
       <Card title="System" icon={Cpu}>
-        <Row label="Backend"       sub="FastAPI · Python 3.11"             right={<Badge color="green" label="Online" />} />
-        <Row label="Vector Store"  sub="In-memory FAISS index"             right={<Badge color="blue"  label="Local"  />} />
-        <Row label="API Region"    sub="Google Cloud · us-central1"        right={<Globe size={14} className="text-hf-subtle" />} />
-        <Row label="Privacy"       sub="Documents never leave your machine" right={<ShieldCheck size={14} className="text-emerald-400" />} />
+        <Row label="Backend"       sub="Node.js · Express"                 right={<Badge color="green" label="Online" />} />
+        <Row label="Vector Store"  sub="FAISS index (Cosine Similarity)"   right={<Badge color="blue"  label="Local"  />} />
+        <Row label="Database"      sub="MongoDB (History & Metadata)"      right={<Globe size={14} className="text-hf-subtle" />} />
+        <Row label="Privacy"       sub="Documents processed locally"       right={<ShieldCheck size={14} className="text-emerald-400" />} />
       </Card>
 
       {/* About */}
       <Card title="About" icon={Info}>
         <Row label="HiveFind" sub="AI-powered student study assistant" right={<span className="text-[11px] font-mono text-hf-subtle">v1.0.0</span>} />
-        <Row label="Stack"    sub="React · FastAPI · Gemini · Ollama" />
+        <Row label="Build"    sub="2026-05-02-Final" />
       </Card>
 
       {/* Data Management */}

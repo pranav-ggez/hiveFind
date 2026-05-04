@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 import axios from 'axios';
-import { Send, Loader2, Sparkles, MessageSquare, AlertCircle, HelpCircle, List, BookOpen, Zap } from 'lucide-react';
+import { Send, Loader2, Sparkles, MessageCircle, AlertCircle, HelpCircle, List, BookOpen, Zap } from 'lucide-react';
 import MessageBubble from './MessageBubble';
 
 const SUGGESTIONS = [
@@ -25,8 +25,9 @@ const ChatWindow = ({ messages, setMessages, isReady, isProcessing }) => {
     isSending.current = true; setLoading(true);
     setMessages(prev => [...prev, { role: 'user', content: q }]);
     setQuery(''); setError(null);
+    const API = import.meta.env.VITE_API_URL;
     try {
-      const { data } = await axios.post('/api/chat/ask', { query: q });
+      const { data } = await axios.post(`${API}/chat/ask`, { query: q });
       setMessages(prev => [...prev, { role: 'bot', content: data.answer, sources: data.sources }]);
     } catch {
       setError('Connection failed. Check backend or API quota.');
@@ -40,75 +41,63 @@ const ChatWindow = ({ messages, setMessages, isReady, isProcessing }) => {
   const isEmpty = messages.length === 0;
 
   return (
-    <div className="flex flex-col h-full relative bg-hf-bg">
-
-      {/* Inactive overlay */}
-      {!isReady && !isProcessing && isEmpty && (
-        <div className="absolute inset-0 z-10 flex flex-col items-center justify-center gap-6 p-8 bg-hf-bg">
-          <div className="w-14 h-14 rounded-2xl bg-hf-blue-dim border border-blue-500/20 flex items-center justify-center">
-            <Sparkles size={26} className="text-blue-400" />
-          </div>
-          <div className="text-center">
-            <h3 className="text-base font-bold text-hf">Knowledge Engine Inactive</h3>
-            <p className="text-[13px] text-hf-muted mt-1 max-w-[220px] leading-relaxed">Upload a document on the left to power your AI study session.</p>
-          </div>
-          <div className="grid grid-cols-2 gap-2.5 w-full max-w-xs mt-1">
-            {SUGGESTIONS.map(({ icon: Icon, label }) => (
-              <div key={label} className="flex items-center gap-2 px-3 py-2.5 rounded-xl bg-hf-surface border border-hf text-hf-muted">
-                <Icon size={13} className="shrink-0 text-blue-400 opacity-60" />
-                <span className="text-[11px] font-semibold">{label}</span>
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
-
-      {/* Processing overlay */}
-      {isProcessing && (
-        <div className="absolute inset-0 z-10 flex flex-col items-center justify-center gap-4 bg-hf-bg">
-          <Loader2 className="animate-spin text-blue-400" size={28} />
-          <div className="text-center">
+    <div className="flex flex-col h-full bg-hf-surface rounded-3xl border border-hf shadow-sm overflow-hidden">
+      
+      {/* Content Area: This container swaps its content based on state */}
+      <div className="flex-1 flex flex-col min-h-0">
+        {isProcessing ? (
+          <div className="flex-1 flex flex-col items-center justify-center p-8 text-center animate-in fade-in duration-300">
+            <Loader2 className="animate-spin text-blue-400 mb-4" size={28} />
             <h3 className="text-base font-bold text-hf">Building Index…</h3>
             <p className="text-[12px] text-hf-muted mt-1">Generating embeddings for your document.</p>
           </div>
-        </div>
-      )}
-
-      {/* Messages */}
-      <div className="flex-1 overflow-y-auto custom-scrollbar px-6 py-5 space-y-5">
-        {isEmpty && isReady && !isProcessing && (
-          <div className="h-full flex flex-col items-center justify-center gap-5">
+        ) : !isReady && isEmpty ? (
+          <div className="flex-1 flex flex-col items-center justify-center gap-6 p-8 animate-in fade-in duration-500">
+            <div className="w-14 h-14 rounded-2xl bg-hf-blue-dim border border-blue-500/20 flex items-center justify-center">
+              <Sparkles size={26} className="text-blue-400" />
+            </div>
             <div className="text-center">
-              <MessageSquare size={22} className="text-hf-subtle opacity-40 mx-auto mb-2" strokeWidth={1.5} />
-              <p className="text-[11px] font-bold uppercase tracking-widest text-hf-subtle opacity-60">Ready — try a prompt</p>
-            </div>
-            <div className="grid grid-cols-2 gap-2 w-full max-w-md">
-              {SUGGESTIONS.map(({ icon: Icon, label, prompt }) => (
-                <button key={label} onClick={() => send(prompt)}
-                  className="flex items-start gap-2.5 px-3.5 py-3 rounded-xl bg-hf-surface border border-hf hover:border-blue-500/30 hover:bg-hf-blue-dim text-left transition-all group"
-                >
-                  <Icon size={13} className="shrink-0 text-blue-400 mt-0.5" />
-                  <span className="text-[11px] font-semibold text-hf-muted group-hover:text-hf transition-colors">{label}</span>
-                </button>
-              ))}
+              <h3 className="text-base font-bold text-hf">Knowledge Engine Inactive</h3>
+              <p className="text-[13px] text-hf-muted mt-1 max-w-[220px] leading-relaxed">Upload a document to power your AI study session.</p>
             </div>
           </div>
-        )}
-
-        {messages.map((msg, i) => <MessageBubble key={i} message={msg} />)}
-
-        {loading && (
-          <div className="flex items-center gap-3 animate-pulse">
-            <div className="w-7 h-7 rounded-lg bg-hf-surface border border-hf flex items-center justify-center shrink-0">
-              <Loader2 size={14} className="animate-spin text-blue-400" />
-            </div>
-            <span className="text-[11px] text-blue-400 font-bold uppercase tracking-widest">Generating…</span>
+        ) : (
+          <div className="flex-1 overflow-y-auto p-6 space-y-2 custom-scrollbar bg-hf-bg">
+            {isEmpty && isReady && !isProcessing && (
+              <div className="h-full flex flex-col items-center justify-center gap-5">
+                <div className="text-center">
+                  <MessageCircle size={22} className="text-hf-subtle opacity-40 mx-auto mb-2" strokeWidth={1.5} />
+                  <p className="text-[11px] font-bold uppercase tracking-widest text-hf-subtle opacity-60">Ready — try a prompt</p>
+                </div>
+                <div className="grid grid-cols-2 gap-2 w-full max-w-md">
+                  {SUGGESTIONS.map(({ icon: Icon, label, prompt }) => (
+                    <button key={label} onClick={() => send(prompt)}
+                      className="flex items-start gap-2.5 px-3.5 py-3 rounded-xl bg-hf-surface border border-hf hover:border-blue-500/30 hover:bg-hf-blue-dim text-left transition-all group"
+                    >
+                      <Icon size={13} className="shrink-0 text-blue-400 mt-0.5" />
+                      <span className="text-[11px] font-semibold text-hf-muted group-hover:text-hf transition-colors">{label}</span>
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+            
+            {messages.map((msg, i) => <MessageBubble key={i} message={msg} />)}
+            
+            {loading && (
+              <div className="flex items-center gap-3 animate-pulse mb-6">
+                <div className="w-7 h-7 rounded-lg bg-hf-raised border border-hf flex items-center justify-center shrink-0">
+                  <Loader2 size={14} className="animate-spin text-blue-400" />
+                </div>
+                <span className="text-[11px] text-blue-400 font-bold uppercase tracking-widest">Generating…</span>
+              </div>
+            )}
+            <div ref={messagesEndRef} />
           </div>
         )}
-        <div ref={messagesEndRef} />
       </div>
-
-      {/* Input */}
+      
+      {/* Input Area is now always separate and accessible */}
       <div className="shrink-0 px-5 py-4 border-t border-hf bg-hf-surface">
         {error && (
           <div className="mb-3 flex items-center gap-2 bg-red-500/10 border border-red-500/20 rounded-lg px-3 py-2">
@@ -116,7 +105,8 @@ const ChatWindow = ({ messages, setMessages, isReady, isProcessing }) => {
             <p className="text-[11px] text-red-400 font-medium">{error}</p>
           </div>
         )}
-        <form onSubmit={e => { e.preventDefault(); send(); }} className="flex items-center gap-2">
+        
+        <form onSubmit={e => { e.preventDefault(); send(); }} className="relative flex items-center">
           <input
             type="text" value={query} onChange={e => setQuery(e.target.value)}
             disabled={!isReady || loading || isProcessing}
@@ -130,10 +120,10 @@ const ChatWindow = ({ messages, setMessages, isReady, isProcessing }) => {
           </button>
         </form>
         <div className="flex items-center justify-between mt-2 px-1">
-          <p className="text-[10px] text-hf-subtle font-medium">gemini-flash-latest · ollama nomic-embed</p>
+          <p className="text-[10px] text-hf-subtle font-medium italic">gemini-flash · ollama nomic-embed</p>
           <div className="flex items-center gap-1.5">
-            <div className={`w-1.5 h-1.5 rounded-full ${isReady ? 'bg-emerald-400' : 'bg-hf-subtle opacity-40'}`} />
-            <div className={`w-1.5 h-1.5 rounded-full ${loading ? 'bg-blue-400 animate-pulse' : 'bg-hf-subtle opacity-40'}`} />
+             <div className={`w-1.5 h-1.5 rounded-full ${isReady ? 'bg-emerald-400' : 'bg-hf-subtle opacity-40'}`} />
+             <div className={`w-1.5 h-1.5 rounded-full ${loading ? 'bg-blue-400 animate-pulse' : 'bg-hf-subtle opacity-40'}`} />
           </div>
         </div>
       </div>

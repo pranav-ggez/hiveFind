@@ -45,7 +45,7 @@ function AppInner() {
                 <h1 className="text-[15px] font-bold tracking-tight text-hf">Student Space</h1>
                 {!isReady && !isProcessing && (
                   <span className="text-[10px] bg-amber-500/10 text-amber-500 border border-amber-500/25 px-2 py-0.5 rounded-full uppercase tracking-widest font-bold">
-                    Setup Required
+                    No Context Loaded
                   </span>
                 )}
               </div>
