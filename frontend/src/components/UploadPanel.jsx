@@ -2,6 +2,8 @@ import React, { useState } from 'react';
 import axios from 'axios';
 import { Upload, FileText, CheckCircle2, Loader2, AlertCircle, X, Cpu, Layers, Lightbulb } from 'lucide-react';
 
+const API = import.meta.env.VITE_API_URL;
+
 const TIPS = [
   'Shorter documents give more precise answers.',
   'Upload lecture slides as PDF for best results.',
@@ -27,7 +29,7 @@ const UploadPanel = ({ onUploadStart, onUploadSuccess, files, setFiles }) => {
     fd.append('file', file);
 
     try {
-      const { data } = await axios.post('/api/upload', fd, { headers: { 'Content-Type': 'multipart/form-data' } });
+      const { data } = await axios.post(`${API}/upload`, fd, { headers: { 'Content-Type': 'multipart/form-data' } });
       setFiles(prev => [{ id: data.fileId, name: data.fileName, chunks: data.totalChunks, date: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) }, ...prev]);
       onUploadSuccess();
     } catch (err) {

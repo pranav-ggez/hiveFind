@@ -2,6 +2,8 @@ import React, { useState, useRef, useEffect } from 'react';
 import axios from 'axios';
 import { Send, User, Bot, Loader2 } from 'lucide-react';
 
+const API = import.meta.env.VITE_API_URL;
+
 const ChatBox = () => {
   const [query, setQuery] = useState('');
   const [messages, setMessages] = useState([]);
@@ -26,7 +28,7 @@ const ChatBox = () => {
     setLoading(true);
 
     try {
-      const { data } = await axios.post('/api/chat/ask', { query: userMessage.content });
+      const { data } = await axios.post(`${API}/chat/ask`, { query: userMessage.content });
       setMessages(prev => [...prev, { role: 'bot', content: data.answer }]);
     } catch (err) {
       setMessages(prev => [...prev, { role: 'bot', content: 'Error: Could not connect to the server.' }]);

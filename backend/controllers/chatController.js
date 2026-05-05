@@ -1,90 +1,119 @@
-const { GoogleGenerativeAI } = require('@google/generative-ai');
 const { generateEmbeddings } = require('../utils/embeddings');
 const vectorStore = require('../utils/vectorStore');
 const Query = require('../models/Query');
+const { callOllama } = require('../utils/ollama');
 
-/**
- * Handle RAG-based Chat Query
- */
-const askQuestion = async (req, res, next) => {
+const FALLBACK = 'Invalid: Answer not found in uploaded documents.';
+
+const memory = new Map();
+
+const getKey = (req) => `${req.ip}-${(req.headers['user-agent'] || '').slice(0, 20)}`;
+
+const getHistory = (req) => {
+  const key = getKey(req);
+  if (!memory.has(key)) memory.set(key, []);
+  return memory.get(key);
+};
+
+const pushHistory = (req, q, a) => {
+  const hist = getHistory(req);
+  hist.push({ q, a });
+  if (hist.length > 3) hist.shift();
+};
+
+const isFollowUp = (text) => text.trim().length < 20;
+
+const rewriteFollowUp = (prevQ, curQ) => {
+  if (!prevQ) return curQ;
+  return `${curQ} about ${prevQ}`;
+};
+
+const askQuestion = async (req, res) => {
   try {
     const { query } = req.body;
 
-    // 1. Validation
     if (!query || !query.trim()) {
-      return res.status(400).json({ message: 'Query cannot be empty' });
+      return res.status(400).json({ message: 'Query cannot be empty.' });
     }
 
-    // 2. Retrieval
-    const queryEmbedding = await generateEmbeddings(query);
-    const relevantChunks = await vectorStore.search(queryEmbedding, 8); // Top-8 for slides coverage
-    
-    console.log('--- [RAG DEBUG START] ---');
-    console.log(`Query: ${query}`);
-    console.log(`Chunks Retrieved: ${relevantChunks.length}`);
-    relevantChunks.forEach((c, i) => {
-      console.log(`Chunk ${i} | Score: ${c.score.toFixed(4)} | File: ${c.filename} | Snippet: ${c.content.substring(0, 60)}...`);
-    });
-
-    if (relevantChunks.length === 0) {
-      console.log('Zero chunks retrieved. Returning "Invalid"');
-      return res.json({ answer: 'Invalid: Answer not found in uploaded documents.' });
+    if (!vectorStore.activeDocument || vectorStore.getDocCount() === 0) {
+      return res.status(400).json({ message: 'No document loaded.' });
     }
 
-    const contextText = relevantChunks.map(c => `[Source: ${c.filename}]\n${c.content}`).join('\n\n---\n\n');
+    const history = getHistory(req);
+    const prevQ = history.length ? history[history.length - 1].q : null;
 
-    // 3. Strict Prompting
-    const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
-    const model = genAI.getGenerativeModel({ model: 'gemini-flash-latest' });
+    const effectiveQuery = isFollowUp(query) && prevQ
+      ? rewriteFollowUp(prevQ, query)
+      : query;
+
+    const embedding = await generateEmbeddings(effectiveQuery);
+
+    let chunks = await vectorStore.search(embedding, 8);
+
+    if (!chunks || chunks.length === 0) {
+      return res.json({ answer: FALLBACK, sources: [] });
+    }
+
+    const topChunks = chunks.slice(0, 3);
+
+    let context = topChunks.map(c => c.content).join('\n---\n');
+    if (context.length > 2500) context = context.slice(0, 2500);
+
+    const wantsTable = /compare|table|vs|difference|types|categories/i.test(query);
 
     const prompt = `
-      ROLE: Senior academic assistant.
-      TASK: Answer the user's question using ONLY the provided document context.
-      
-      STRICT CONSTRAINTS:
-      1. Use ONLY the retrieved chunks below to answer.
-      2. If the specific answer is NOT in the context, respond EXACTLY with:
-         "Invalid: Answer not found in uploaded documents."
-      3. Do NOT use outside knowledge or hallucinate.
-      4. Do NOT apologize or explain why you can't answer, just use the exact phrase if missing.
-      5. Format math/LaTeX clearly using Markdown if found.
+Answer the question using ONLY relevant parts of the context.
 
-      CONTEXT:
-      ${contextText}
-      
-      USER QUESTION:
-      ${query}
-    `;
+STRICT RULES:
+- Answer ONLY what is asked
+- Do NOT include extra topics
+- Do NOT explain unrelated concepts
+- If answer not clearly found → return EXACTLY:
+${FALLBACK}
 
-    console.log('--- [FINAL PROMPT] ---');
-    console.log(prompt);
+${wantsTable ? 'If comparison is needed, return ONLY a markdown table.' : ''}
 
-    // 4. AI Generation
-    const result = await model.generateContent(prompt);
-    const response = await result.response;
-    const text = response.text().trim();
+Context:
+${context}
 
-    console.log(`AI Response: ${text}`);
-    console.log('--- [RAG DEBUG END] ---');
+Question:
+${effectiveQuery}
 
-    // 5. History & Response
-    const newQuery = new Query({
-      question: query,
-      answer: text
-    });
-    await newQuery.save();
+Answer:
+`.trim();
+
+    let answer = await callOllama(prompt);
+
+    if (!answer || answer.length < 3) {
+      return res.json({ answer: FALLBACK, sources: [] });
+    }
+
+    const qWords = query.toLowerCase().split(/\s+/);
+
+    const isRelevant = qWords.some(word =>
+      answer.toLowerCase().includes(word)
+    );
+
+    if (!isRelevant) {
+      return res.json({ answer: FALLBACK, sources: [] });
+    }
+
+    pushHistory(req, effectiveQuery, answer);
+
+    await new Query({ question: query, answer }).save().catch(() => {});
 
     res.json({
-      answer: text,
-      sources: relevantChunks.map(c => ({ 
-        filename: c.filename, 
-        content: c.content 
+      answer,
+      sources: topChunks.map(c => ({
+        filename: c.filename,
+        content: c.content
       }))
     });
 
-  } catch (error) {
-    console.error('[Chat] Critical Error:', error);
-    res.status(500).json({ message: 'Error processing your query', error: error.message });
+  } catch (err) {
+    console.error('[Chat Error]', err);
+    res.status(500).json({ message: 'Error', error: err.message });
   }
 };
 
