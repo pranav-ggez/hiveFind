@@ -28,6 +28,7 @@ const UploadPanel = ({ onUploadStart, onUploadSuccess, files, setFiles }) => {
     const fd = new FormData();
     fd.append('file', file);
 
+    const API = import.meta.env.VITE_API_URL;
     try {
       const { data } = await axios.post(`${API}/upload`, fd, { headers: { 'Content-Type': 'multipart/form-data' } });
       setFiles(prev => [{ id: data.fileId, name: data.fileName, chunks: data.totalChunks, date: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) }, ...prev]);

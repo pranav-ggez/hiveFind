@@ -27,6 +27,7 @@ const ChatBox = () => {
     setQuery('');
     setLoading(true);
 
+    const API = import.meta.env.VITE_API_URL;
     try {
       const { data } = await axios.post(`${API}/chat/ask`, { query: userMessage.content });
       setMessages(prev => [...prev, { role: 'bot', content: data.answer }]);

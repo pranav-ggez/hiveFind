@@ -12,8 +12,9 @@ const QuizView = () => {
 
   const startQuiz = async () => {
     setLoading(true); setQuiz(null); setSubmitted(false); setAnswers({}); setError(null);
+    const API = import.meta.env.VITE_API_URL;
     try {
-      const { data } = await axios.post('/api/quiz/generate', { topic: 'General knowledge from docs' });
+      const { data } = await axios.post(`${API}/quiz/generate`, { topic: 'General knowledge from docs' });
       setQuiz(data);
     } catch {
       setError('Failed to generate quiz. Make sure you have uploaded documents.');
@@ -29,7 +30,8 @@ const QuizView = () => {
     });
     const finalScore = Math.round((correct / quiz.questions.length) * 100);
     setScore(finalScore); setSubmitted(true);
-    try { await axios.post('/api/submit', { title: quiz.title, questions: quiz.questions, score: finalScore }); }
+    const API = import.meta.env.VITE_API_URL;
+    try { await axios.post(`${API}/quiz/submit`, { title: quiz.title, questions: quiz.questions, score: finalScore }); }
     catch { /* non-critical */ }
   };
 
